@@ -1,6 +1,6 @@
 from medclaim.billing.history import get_statement_history
 from medclaim.billing.statement import build_statement
-from medclaim.claims import void_claim
+from medclaim.claims import void_claim, void_claim_legacy
 from medclaim.models import Contract
 
 
@@ -16,6 +16,14 @@ def test_statement_history_excludes_voided_claims(client, seed):
     history = get_statement_history(patient_id="P-1042")
     assert claim.id not in [line.claim_id for line in history]
     assert all(line.is_voided is False for line in history)
+
+
+def test_statement_history_excludes_legacy_voided_claims(client, seed):
+    claim = seed.claim(patient_id="P-1042", amount_cents=15_000)
+    void_claim_legacy(claim.id, reason="duplicate")
+    history = get_statement_history(patient_id="P-1042")
+    assert claim.id not in [line.claim_id for line in history], \
+        "Legacy voided claims should be excluded from statement history"
 
 
 def test_build_statement_calls_contract_service(client, mocker):

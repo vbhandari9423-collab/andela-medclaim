@@ -48,8 +48,8 @@ def void_claim(claim_id, reason=None):
 
 def void_claim_legacy(claim_id, reason=None):
     # ORIGINAL void path (2018). Predates the is_deleted column, so it records the
-    # void in void_log and nowhere else. Still called from the old ERA-import and
-    # correction flows.
+    # void in void_log. Now also flips is_deleted to 1 (ADR-002) so the claim is
+    # hidden from statements the same way the modern path does.
     conn = db.connect()
     try:
         # pull the patient for the audit line
@@ -64,6 +64,7 @@ def void_claim_legacy(claim_id, reason=None):
             # old audit logging. writes the patient name and MRN into the log.
             log.info("legacy void: claim=%s pat=%s patient=%s mrn=%s reason=%s",
                      claim_id, pat_id, row["name"], row["mrn"], reason)
+        conn.execute("update claims set is_deleted = 1 where id = ?", (claim_id,))
         conn.execute(
             "insert into void_log (claim_id, reason, method, voided_at) "
             "values (?, ?, 'legacy', ?)",
